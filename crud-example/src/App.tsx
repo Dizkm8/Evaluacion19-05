@@ -10,6 +10,7 @@ import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, Di
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
+import { clear } from 'console';
 
 enum PropsTypes {
   ADD = 'Agregar',
@@ -52,7 +53,7 @@ export default function App() {
   });
 
   const baseUrl = 'http://20.231.202.18:8000/api/form';
-  useEffect(() => {
+  const fetchData = () => {
     axios.get(baseUrl)
       .then(response => {
         setUsers(response.data);
@@ -63,6 +64,11 @@ export default function App() {
         setLoading(false);
         setError(true);
       });
+  };
+
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   function handleClickOpen(props: Props) {
@@ -116,13 +122,12 @@ export default function App() {
   function handleAdd(formUser: User) {
     axios.post(baseUrl, formUser)
       .then(response => {
-        setUsers([...users, { id: response.data.id, code: formUser.code, name: formUser.name, description: formUser.description }]);
-        setNonFilteredUsers([...nonFilteredUsers, { id: response.data.id, code: formUser.code, name: formUser.name, description: formUser.description }]);
         clearDialog();
+        fetchData();
       })
       .catch(error => {
         setSnackbar({ isOpen: true, message: error.response.data.message })
-      })
+      });
   }
 
   if (error) {
