@@ -30,10 +30,18 @@ interface Props {
   user: User | null,
 }
 
+interface FormErrors {
+  code: boolean,
+  name: boolean,
+  description: boolean,
+}
+
 export default function App() {
   const [users, setUsers] = useState<User[]>([]);
+  const [formError, setFormError] = useState<FormErrors>({ code: false, name: false, description: false });
+  const [nonFilteredUsers, setNonFilteredUsers] = useState<User[]>([]);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = React.useState<Props>({ open: false, type: PropsTypes.NONE, user: null });
   const [snackbar, setSnackbar] = React.useState({ isOpen: false, message: '' });
   const [formUser, setFormUser] = useState<User>({
@@ -42,6 +50,20 @@ export default function App() {
     name: '',
     description: '',
   });
+
+  const baseUrl = 'http://20.231.202.18:8000/api/form';
+  useEffect(() => {
+    axios.get(baseUrl)
+      .then(response => {
+        setUsers(response.data);
+        setLoading(false);
+        setNonFilteredUsers(response.data);
+      })
+      .catch(error => {
+        setLoading(false);
+        setError(true);
+      });
+  }, []);
 
   function handleClickOpen(props: Props) {
     if (props.user === null) {
@@ -57,15 +79,31 @@ export default function App() {
   }
 
   function handleDelete(id: number) {
-    
+    axios.delete(baseUrl + '/' + id)
+      .then(response => {
+        setUsers(users.filter(user => user.id !== id));
+        setNonFilteredUsers(nonFilteredUsers.filter(user => user.id !== id));
+      })
+      .catch(error => {
+        setSnackbar({ isOpen: true, message: 'No fue posible eliminar el registro' })
+      });
   }
 
   function clearDialog() {
     setDialog({ open: false, type: dialog.type, user: null });
+    setFormError({ code: false, name: false, description: false });
   }
 
   function handleUpdate(formUser: User | null) {
-    
+    axios.put(baseUrl + '/' + formUser?.id, formUser)
+      .then(response => {
+        setUsers(nonFilteredUsers.map(user => user.id === formUser?.id ? formUser : user));
+        setNonFilteredUsers(nonFilteredUsers.map(user => user.id === formUser?.id ? formUser : user));
+        clearDialog();
+      })
+      .catch(error => {
+        setSnackbar({ isOpen: true, message: error.response.data.message })
+      })
   };
 
   const handleSnackbarClose = (event: React.SyntheticEvent | Event, reason?: string) => {
@@ -75,21 +113,31 @@ export default function App() {
     setSnackbar({ isOpen: false, message: '' });
   };
 
-  function handleAdd(formUser: User) {
-    
+   function handleAdd(formUser: User) {
+    axios.post(baseUrl, formUser)
+      .then(response => {
+        setUsers([...users, response.data]);
+        setNonFilteredUsers([...nonFilteredUsers, response.data]);
+        
+      })
+      .catch(error => {
+        setSnackbar({ isOpen: true, message: 'No fue posible agregar el registro' });
+        clearDialog();
+      })
+      .finally(() => {
+        clearDialog();
+      })
   }
-
-
 
   if (error) {
     return (
       <Container maxWidth="xl">
-        <h1>Página no cargada</h1>
+        <h1>No fue posible cargar la página</h1>
       </Container>
     );
   }
-
-  return (
+  const view = 
+   (
     <>
       <Snackbar open={snackbar.isOpen} autoHideDuration={4000} onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
@@ -105,6 +153,19 @@ export default function App() {
           mb: 2,
         }}>
           <Typography variant="h5">Lista de usuarios</Typography>
+          <TextField
+            id="search-input"
+            label="Búsqueda"
+            placeholder='Ingresa algo'
+            onChange={(event) => {
+              const newValue = event.target.value;
+              setUsers(nonFilteredUsers
+                .filter(user => user.code.includes(newValue) ||
+                  user.name.includes(newValue) ||
+                  user.description.includes(newValue)))
+            }}
+          >
+          </TextField>
           <Button variant="contained" color="success" onClick={() => handleClickOpen({ open: true, type: PropsTypes.ADD, user: null })}>
             Agregar
           </Button>
@@ -119,65 +180,44 @@ export default function App() {
                 <TableCell>{loading ? <Skeleton /> : 'Acciones'}</TableCell>
               </TableRow>
             </TableHead>
-            {loading ? <TableBody>
-              <TableRow key='0'>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-              </TableRow>
-              <TableRow key='1'>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-              </TableRow>
-              <TableRow key='2'>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-              </TableRow>
-            </TableBody> :
-              <TableBody>
-                {users.map(user => (
-                  <TableRow
-                    key={user.id}
-                  >
-                    <TableCell>{user.code}</TableCell>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.description}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        aria-label="delete"
-                        size="medium"
-                        onClick={() => handleDelete(user.id)}>
-                        <DeleteIcon />
-                      </IconButton>
-                      <IconButton
-                        aria-label="delete"
-                        size="medium"
-                        onClick={() => handleClickOpen({
-                          open: true,
-                          type: PropsTypes.EDIT,
-                          user: {
-                            id: user.id,
-                            code: user.code,
-                            name: user.name,
-                            description: user.description
-                          }
-                        })}>
-                        <EditIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            }
+            <TableBody>
+              {users.map(user => (
+                <TableRow
+                  key={user.id}
+                >
+                  <TableCell>{user.code}</TableCell>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.description}</TableCell>
+                  <TableCell>
+                    <IconButton
+                      aria-label="delete"
+                      size="medium"
+                      onClick={() => handleDelete(user.id)}>
+                      <DeleteIcon />
+                    </IconButton>
+                    <IconButton
+                      aria-label="edit"
+                      size="medium"
+                      onClick={() => handleClickOpen({
+                        open: true,
+                        type: PropsTypes.EDIT,
+                        user: {
+                          id: user.id,
+                          code: user.code,
+                          name: user.name,
+                          description: user.description
+                        }
+                      })}>
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
           </Table>
         </TableContainer>
 
-        <Dialog open={dialog.open} onClose={() => handleUpdate(null)}>
+        <Dialog open={dialog.open}>
           <DialogTitle>{dialog.type}</DialogTitle>
           <DialogContent>
             <TextField sx={{ my: 1 }}
@@ -185,7 +225,7 @@ export default function App() {
               id="code-input"
               label="Código"
               fullWidth
-              error={formUser.code.length > 5 || formUser.code.length < 1}
+              error={formError.code}
               helperText={formUser.code.length < 1 ?
                 'Campo requerido' : formUser.code.length > 5 ?
                   'El código no puede ser mayor a 5 caracteres' : null}
@@ -195,6 +235,16 @@ export default function App() {
                 setFormUser((prevForm) => ({
                   ...prevForm, code: newValue
                 }));
+                if (newValue.length > 5 || newValue.length < 1) {
+                  setFormError(prevError => ({
+                    ...prevError, code: true
+                  }))
+                }
+                else {
+                  setFormError(prevError => ({
+                    ...prevError, code: false
+                  }))
+                }
               }}
             />
             <TextField sx={{ my: 1 }}
@@ -202,7 +252,7 @@ export default function App() {
               id="name-input"
               label="Nombre"
               fullWidth
-              error={formUser.name.length < 1}
+              error={formError.name}
               helperText={formUser.name.length < 1 ?
                 'Campo requerido' : null}
               defaultValue={formUser.name}
@@ -211,6 +261,16 @@ export default function App() {
                 setFormUser((prevForm) => ({
                   ...prevForm, name: newValue
                 }));
+                if (newValue.length < 1) {
+                  setFormError(prevError => ({
+                    ...prevError, name: true
+                  }))
+                }
+                else {
+                  setFormError(prevError => ({
+                    ...prevError, name: false
+                  }))
+                }
               }}
             />
             <TextField sx={{ my: 1 }}
@@ -218,7 +278,7 @@ export default function App() {
               id="description-input"
               label="Descripción"
               fullWidth
-              error={formUser.description.length < 1}
+              error={formError.description}
               helperText={formUser.description.length < 1 ?
                 'Campo requerido' : null}
               defaultValue={formUser.description}
@@ -227,6 +287,16 @@ export default function App() {
                 setFormUser((prevForm) => ({
                   ...prevForm, description: newValue
                 }));
+                if (newValue.length < 1) {
+                  setFormError(prevError => ({
+                    ...prevError, description: true
+                  }))
+                }
+                else {
+                  setFormError(prevError => ({
+                    ...prevError, description: false
+                  }))
+                }
               }}
             />
           </DialogContent>
@@ -247,4 +317,6 @@ export default function App() {
       </Container>
     </>
   );
+
+  return view;
 }
