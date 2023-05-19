@@ -18,7 +18,7 @@ enum PropsTypes {
 }
 
 interface User {
-  id: number | null,
+  id: number,
   code: string,
   name: string,
   description: string,
@@ -31,10 +31,9 @@ interface Props {
 }
 
 export default function App() {
-  const baseUrl = 'http://20.231.202.18:8000/api/form'
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [dialog, setDialog] = React.useState<Props>({ open: false, type: PropsTypes.NONE, user: null });
   const [snackbar, setSnackbar] = React.useState({ isOpen: false, message: '' });
   const [formUser, setFormUser] = useState<User>({
@@ -57,14 +56,8 @@ export default function App() {
     setDialog(props);
   }
 
-  function handleDelete(id: number | null) {
-    axios.delete(`${baseUrl}/${id}`)
-      .then(() => {
-        setUsers(users.filter(user => user.id !== id));
-      })
-      .catch(error => {
-        console.log(error);
-      });
+  function handleDelete(id: number) {
+    
   }
 
   function clearDialog() {
@@ -72,20 +65,7 @@ export default function App() {
   }
 
   function handleUpdate(formUser: User | null) {
-    if (formUser != null) {
-      axios.put(`${baseUrl}/${formUser.id}`, {
-        code: formUser.code,
-        name: formUser.name,
-        description: formUser.description
-      })
-        .then(() => {
-          setUsers(users.map(user => user.id === formUser.id ? formUser : user))
-        })
-        .catch(error => {
-          setSnackbar({ isOpen: true, message: 'Error al actualizar el usuario' });
-        })
-    }
-    clearDialog();
+    
   };
 
   const handleSnackbarClose = (event: React.SyntheticEvent | Event, reason?: string) => {
@@ -96,32 +76,10 @@ export default function App() {
   };
 
   function handleAdd(formUser: User) {
-    axios.post(baseUrl, {
-
-      code: formUser.code,
-      name: formUser.name,
-      description: formUser.description
-    })
-      .then(response => {
-        setUsers([...users, response.data]);
-      })
-      .catch(error => {
-        setSnackbar({ isOpen: true, message: 'Error al agregar el usuario' });
-      })
-    clearDialog();
+    
   }
 
-  useEffect(() => {
-    axios.get(baseUrl)
-      .then(response => {
-        setUsers(response.data);
-        setLoading(false);
-      })
-      .catch(error => {
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
+
 
   if (error) {
     return (
@@ -273,7 +231,7 @@ export default function App() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => handleUpdate(null)} color="error">Cancelar</Button>
+            <Button onClick={() => clearDialog()} color="error">Cancelar</Button>
             <Button
               disabled={formUser.code.length > 5 ||
                 formUser.code.length < 1 ||
@@ -286,7 +244,6 @@ export default function App() {
               )} variant="contained" color="success">{dialog.type}</Button>
           </DialogActions>
         </Dialog>
-
       </Container>
     </>
   );
