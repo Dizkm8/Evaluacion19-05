@@ -139,14 +139,14 @@ export default function App() {
   }
   const view =
     (
-      <>
+      <Container maxWidth='xl'>
         <Snackbar open={snackbar.isOpen} autoHideDuration={4000} onClose={handleSnackbarClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
           <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
             {snackbar.message}
           </Alert>
         </Snackbar>
-        <Container maxWidth='xl' disableGutters={true} sx={{ mt: 5 }}>
+        <Container maxWidth='lg' sx={{ mt: 5 }}>
           <Box sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -316,7 +316,7 @@ export default function App() {
             </DialogActions>
           </Dialog>
         </Container>
-      </>
+      </Container>
     );
 
   return view;
